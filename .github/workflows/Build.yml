@@ -1,0 +1,39 @@
+name: Build SuccessStory
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v2
+
+      - name: Restore and build
+        run: >
+          msbuild source/SuccessStory.sln
+          /restore
+          /p:RestorePackagesConfig=true
+          /p:Configuration=Release
+          /p:PostBuildEvent=
+          /m
+          /v:minimal
+
+      - name: Upload compiled plugin
+        uses: actions/upload-artifact@v4
+        with:
+          name: SuccessStory
+          path: source/bin/Release/
+          if-no-files-found: error
