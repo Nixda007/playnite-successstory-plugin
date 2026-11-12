@@ -175,7 +175,9 @@ namespace SuccessStory
         public string RetroAchievementsKey { get; set; } = string.Empty;
         public List<RaConsoleAssociated> RaConsoleAssociateds { get; set; } = new List<RaConsoleAssociated>();
 
-        public bool EnableAchievementWatcher { get; set; } = false; //eFMan changes
+        public bool EnableAchievementWatcher { get; set; } = false;
+        public int AchievementWatcherPort { get; set; } = 8082;
+        public string AchievementWatcherLogin { get; set; } = string.Empty;
 
         public bool EnableLocal { get; set; } = false;
         public List<Folder> LocalPath { get; set; } = new List<Folder>();
@@ -422,7 +424,12 @@ namespace SuccessStory
         public bool VerifySettings(out List<string> errors)
         {
             errors = new List<string>();
-            return true;
+            if (Settings.EnableAchievementWatcher &&
+                (Settings.AchievementWatcherPort < 1 || Settings.AchievementWatcherPort > 65535))
+            {
+                errors.Add(ResourceProvider.GetString("LOCSuccessStoryAchievementWatcherPortInvalid"));
+            }
+            return errors.Count == 0;
         }
     }
 

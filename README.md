@@ -27,6 +27,10 @@ This fork of the SuccessStory plugin specifically attempts to fix and enhance St
 3. **Added PS4 Achievement Support**
    - Implemented [PS4 Achievement](https://github.com/eFMann/playnite-successstory-plugin/wiki/Configure-ShadPS4-Achievements) support via ShadPS4 Emu.
 
+4. **Achievement Watcher Next Integration**
+   - Optionally prefer achievement data from [Achievement Watcher Next](https://github.com/Shirowwww/Achievement-Watcher-Next) through its local WebSocket bridge, while keeping achievements in SuccessStory's database and UI.
+   - Configure the bridge port and optional `user:password` in SuccessStory settings. If AW Next is unavailable or has no matching game, the configured SuccessStory provider remains the fallback.
+
 ## Information
 The plugin gets localised achievements (if they exist) or manual achievements.
 

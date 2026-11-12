@@ -109,6 +109,7 @@ namespace SuccessStory.Services
                     if (achievementProviders == null)
                     {
                         achievementProviders = new Dictionary<AchievementSource, GenericAchievements> {
+                            { AchievementSource.AchievementWatcherNext, new AchievementWatcherProvider() },
                             { AchievementSource.GOG, new GogAchievements() },
                             { AchievementSource.Epic, new EpicAchievements() },
                             { AchievementSource.Origin, new OriginAchievements() },
@@ -318,6 +319,27 @@ namespace SuccessStory.Services
             Game game = API.Instance.Database.Games.Get(id);
             GameAchievements gameAchievements = GetDefault(game);
             AchievementSource achievementSource = GetAchievementSource(PluginSettings.Settings, game);
+            bool achievementWatcherFailed = false;
+
+            if (PluginSettings.Settings.EnableAchievementWatcher)
+            {
+                if (Application.Current?.Dispatcher?.CheckAccess() ?? false)
+                {
+                    Logger.Warn($"Skipping Achievement Watcher Next refresh on the UI thread for {game.Name}");
+                    return Get(game, true) ?? gameAchievements;
+                }
+
+                var achievementWatcher = (AchievementWatcherProvider)AchievementProviders[AchievementSource.AchievementWatcherNext];
+                GameAchievements watcherAchievements = achievementWatcher.GetAchievements(game);
+                if (watcherAchievements?.HasAchievements ?? false)
+                {
+                    Logger.Info($"{watcherAchievements.Unlocked}/{watcherAchievements.Total} achievements found for {game.Name} using Achievement Watcher Next");
+                    return watcherAchievements;
+                }
+
+                achievementWatcherFailed = true;
+                Logger.Info($"Achievement Watcher Next did not return achievements for {game.Name}; trying SuccessStory's configured provider");
+            }
 
             if (achievementSource == AchievementSource.None)
             {
@@ -325,9 +347,11 @@ namespace SuccessStory.Services
             }
 
             // Generate database only this source
-            if (VerifToAddOrShow(PluginSettings.Settings, game))
+            GenericAchievements achievementProvider;
+            if (AchievementProviders.TryGetValue(achievementSource, out achievementProvider) &&
+                achievementProvider.EnabledInSettings() &&
+                achievementProvider.ValidateConfiguration())
             {
-                GenericAchievements achievementProvider = AchievementProviders[achievementSource];
                 RetroAchievements retroAchievementsProvider = achievementProvider as RetroAchievements;
                 PSNAchievements psnAchievementsProvider = achievementProvider as PSNAchievements;
 
@@ -373,6 +397,16 @@ namespace SuccessStory.Services
                 }
 
                 Common.LogDebug(true, $"Achievements for {game.Name} - {achievementSource} - {Serialization.ToJson(gameAchievements)}");
+            }
+
+            if (achievementWatcherFailed && !(gameAchievements?.HasAchievements ?? false))
+            {
+                GameAchievements cachedAchievements = Get(game, true);
+                if (cachedAchievements?.HasAchievements ?? false)
+                {
+                    Logger.Warn($"Keeping cached achievements for {game.Name} because Achievement Watcher Next and the fallback returned no achievements");
+                    return cachedAchievements;
+                }
             }
 
             return gameAchievements;
@@ -445,6 +479,7 @@ namespace SuccessStory.Services
         public enum AchievementSource
         {
             None,
+            AchievementWatcherNext,
             Local,
             Playstation,
             Steam,
@@ -697,6 +732,12 @@ namespace SuccessStory.Services
         /// <returns>true when achievements can be retrieved for the supplied game</returns>
         public static bool VerifToAddOrShow(SuccessStorySettings settings, Game game)
         {
+            if (settings.EnableAchievementWatcher &&
+                AchievementProviders[AchievementSource.AchievementWatcherNext].ValidateConfiguration())
+            {
+                return true;
+            }
+
             AchievementSource achievementSource = GetAchievementSource(settings, game);
             if (!AchievementProviders.TryGetValue(achievementSource, out GenericAchievements achievementProvider))
             {

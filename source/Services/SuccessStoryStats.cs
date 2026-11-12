@@ -406,8 +406,18 @@ namespace SuccessStory.Services
 
             #region Add missing group
             List<string> allGroup = new List<string>();
-            DateTime dtMin = achievements.Where(x => x.Achievement.DateWhenUnlocked != null).Min(x => (DateTime)x.Achievement.DateWhenUnlocked);
-            DateTime dtMax = achievements.Where(x => x.Achievement.DateWhenUnlocked != null).Max(x => (DateTime)x.Achievement.DateWhenUnlocked);
+            var unlockDates = achievements
+                .Where(x => x.Achievement.DateWhenUnlocked.HasValue)
+                .Select(x => x.Achievement.DateWhenUnlocked.Value)
+                .ToList();
+
+            DateTime dtMin = unlockDates.Count > 0
+                ? unlockDates.Min()
+                : DateTime.Today;
+
+            DateTime dtMax = unlockDates.Count > 0
+                ? unlockDates.Max()
+                : DateTime.Today;
 
             switch (statsType)
             {
