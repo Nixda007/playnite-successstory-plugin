@@ -19,7 +19,6 @@ namespace SuccessStory.Clients
 
         public GogAchievements() : base("GOG", CodeLang.GetGogLang(API.Instance.ApplicationSettings.Language))
         {
-            GogApi.SetLanguage(API.Instance.ApplicationSettings.Language);
         }
 
 
