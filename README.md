@@ -37,6 +37,7 @@ With this plugin you can
 * add a store's achievements or manual achievements
 * works for GOG, Steam, Origin, Xbox, Epic Games, Game Jolt, Guild Wars 2, World of Warcraft, RPCS3 and RetroAchievements
 * manual achievements with import from trackers for Genshin Impact, Wuthering Waves, Honkai Star Rail and Zenless Zone Zero
+* optionally prefer achievements from [Achievement Watcher Next](https://github.com/Shirowwww/Achievement-Watcher-Next) via its local WebSocket bridge
 * add tag with time to unlock all achievements
 * many user stats
   

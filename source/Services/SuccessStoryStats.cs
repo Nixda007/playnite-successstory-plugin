@@ -412,21 +412,26 @@ namespace SuccessStory.Services
             // Added missing groups
             if (statsType == StatsType.Day || statsType == StatsType.Month)
             {
-                DateTime dtMin = achievements.Where(x => x.Achievement.DateWhenUnlocked.HasValue)
-                                              .Min(x => x.Achievement.DateWhenUnlocked.Value);
-                DateTime dtMax = achievements.Where(x => x.Achievement.DateWhenUnlocked.HasValue)
-                                              .Max(x => x.Achievement.DateWhenUnlocked.Value);
+                List<DateTime> unlockDates = achievements
+                    .Where(x => x.Achievement.DateWhenUnlocked.HasValue)
+                    .Select(x => x.Achievement.DateWhenUnlocked.Value)
+                    .ToList();
 
-                IEnumerable<string> allGroupKeys = statsType == StatsType.Day
-                    ? Enumerable.Range(0, (dtMax - dtMin).Days + 1).Select(x => dtMin.AddDays(x).ToString("yyyy-MM-dd"))
-                    : Enumerable.Range(0, (dtMax.Year - dtMin.Year) * 12 + dtMax.Month - dtMin.Month + 1)
-                                .Select(x => dtMin.AddMonths(x).ToString("yyyy-MM"));
-
-                foreach (string key in allGroupKeys)
+                if (unlockDates.Count > 0)
                 {
-                    if (!grouped.ContainsKey(key))
+                    DateTime dtMin = unlockDates.Min();
+                    DateTime dtMax = unlockDates.Max();
+                    IEnumerable<string> allGroupKeys = statsType == StatsType.Day
+                        ? Enumerable.Range(0, (dtMax - dtMin).Days + 1).Select(x => dtMin.AddDays(x).ToString("yyyy-MM-dd"))
+                        : Enumerable.Range(0, (dtMax.Year - dtMin.Year) * 12 + dtMax.Month - dtMin.Month + 1)
+                                    .Select(x => dtMin.AddMonths(x).ToString("yyyy-MM"));
+
+                    foreach (string key in allGroupKeys)
                     {
-                        grouped[key] = new List<StatsData>();
+                        if (!grouped.ContainsKey(key))
+                        {
+                            grouped[key] = new List<StatsData>();
+                        }
                     }
                 }
             }

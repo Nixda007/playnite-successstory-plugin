@@ -174,6 +174,10 @@ namespace SuccessStory
 
         public bool EnableManual { get; set; } = false;
 
+        public bool EnableAchievementWatcher { get; set; } = false;
+        public int AchievementWatcherPort { get; set; } = 8082;
+        public string AchievementWatcherLogin { get; set; } = string.Empty;
+
         public bool EnableGenshinImpact { get; set; } = false;
         public bool EnableWutheringWaves { get; set; } = false;
         public bool EnableHonkaiStarRail { get; set; } = false;
@@ -409,6 +413,17 @@ namespace SuccessStory
         public bool VerifySettings(out List<string> errors)
         {
             errors = new List<string>();
+            if (Settings.EnableAchievementWatcher &&
+                (Settings.AchievementWatcherPort < 1 || Settings.AchievementWatcherPort > 65535))
+            {
+                errors.Add(ResourceProvider.GetString("LOCSuccessStoryAchievementWatcherPortInvalid"));
+            }
+
+            if (errors.Count > 0)
+            {
+                return false;
+            }
+
             return true;
         }
     }

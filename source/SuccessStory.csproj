@@ -145,6 +145,7 @@
       <Private>False</Private>
     </Reference>
     <Reference Include="System.Web" />
+    <Reference Include="System.Web.Extensions" />
     <Reference Include="System.Xaml" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -162,6 +163,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Clients\AchievementWatcherAchievements.cs" />
     <Compile Include="Clients\GameJoltAchievements.cs" />
     <Compile Include="Clients\ShadPS4Achievements.cs" />
     <Compile Include="Clients\Xbox360Achievements.cs" />

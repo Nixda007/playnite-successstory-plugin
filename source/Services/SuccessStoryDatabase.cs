@@ -30,6 +30,7 @@ namespace SuccessStory.Services
         {
             return new Dictionary<AchievementSource, GenericAchievements>
             {
+                { AchievementSource.AchievementWatcherNext, new AchievementWatcherProvider() },
                 { AchievementSource.GOG, new GogAchievements() },
                 { AchievementSource.Epic, new EpicAchievements() },
                 { AchievementSource.EA, new EaAchievements() },
@@ -68,8 +69,28 @@ namespace SuccessStory.Services
 
         public void GetManual(Game game)
         {
+            _ = GetManualAsync(game);
+        }
+
+        private async Task GetManualAsync(Game game)
+        {
             try
             {
+                if (PluginSettings.Settings.EnableAchievementWatcher)
+                {
+                    var achievementWatcher = (AchievementWatcherProvider)AchievementProviders[AchievementSource.AchievementWatcherNext];
+                    GameAchievements watcherAchievements = await Task.Run(() => achievementWatcher.GetAchievements(game));
+                    if (watcherAchievements?.HasAchievements ?? false)
+                    {
+                        watcherAchievements = SetEstimateTimeToUnlock(game, watcherAchievements);
+                        AddOrUpdate(watcherAchievements);
+                        Logger.Info($"Added {watcherAchievements.Total} achievements for {game.Name} using Achievement Watcher Next");
+                        return;
+                    }
+
+                    Logger.Info($"Achievement Watcher Next had no match for {game.Name}; opening the existing provider picker");
+                }
+
                 GameAchievements gameAchievements = GetDefault(game);
 
                 SuccessStoreGameSelection ViewExtension = new SuccessStoreGameSelection(game);
@@ -313,15 +334,37 @@ namespace SuccessStory.Services
             GameAchievements gameAchievements = GetDefault(game);
             AchievementSource achievementSource = GetAchievementSource(PluginSettings.Settings, game);
 
+            if (PluginSettings.Settings.EnableAchievementWatcher)
+            {
+                if (Application.Current?.Dispatcher?.CheckAccess() ?? false)
+                {
+                    Logger.Warn($"Skipping Achievement Watcher Next refresh on the UI thread for {game.Name}");
+                }
+                else
+                {
+                    var achievementWatcher = (AchievementWatcherProvider)AchievementProviders[AchievementSource.AchievementWatcherNext];
+                    GameAchievements watcherAchievements = achievementWatcher.GetAchievements(game);
+                    if (watcherAchievements?.HasAchievements ?? false)
+                    {
+                        Logger.Info($"{watcherAchievements.Unlocked}/{watcherAchievements.Total} achievements found for {game.Name} using Achievement Watcher Next");
+                        return watcherAchievements;
+                    }
+
+                    Logger.Info($"Achievement Watcher Next did not return achievements for {game.Name}; trying SuccessStory's configured provider");
+                }
+            }
+
             if (achievementSource == AchievementSource.None)
             {
                 Logger.Warn($"No provider find for {game.Name} - {achievementSource} - {game.Source?.Name} - {game?.Platforms?.FirstOrDefault()?.Name}");
             }
 
             // Generate database only this source
-            if (VerifToAddOrShow(PluginSettings.Settings, game))
+            if (VerifToAddOrShow(PluginSettings.Settings, game) &&
+                AchievementProviders.TryGetValue(achievementSource, out GenericAchievements achievementProvider) &&
+                achievementProvider.EnabledInSettings() &&
+                achievementProvider.ValidateConfiguration())
             {
-                GenericAchievements achievementProvider = AchievementProviders[achievementSource];
                 RetroAchievements retroAchievementsProvider = achievementProvider as RetroAchievements;
                 PSNAchievements psnAchievementsProvider = achievementProvider as PSNAchievements;
 
@@ -559,7 +602,8 @@ namespace SuccessStory.Services
             HonkaiStarRail,
             ZenlessZoneZero,
 			ShadPS4,
-			Xbox360
+			Xbox360,
+            AchievementWatcherNext
 		}
 
         private static AchievementSource GetAchievementSourceFromLibraryPlugin(SuccessStorySettings settings, Game game)
@@ -806,6 +850,12 @@ namespace SuccessStory.Services
         /// <returns>true when achievements can be retrieved for the supplied game</returns>
         public static bool VerifToAddOrShow(SuccessStorySettings settings, Game game)
         {
+            if (settings.EnableAchievementWatcher &&
+                AchievementProviders[AchievementSource.AchievementWatcherNext].ValidateConfiguration())
+            {
+                return true;
+            }
+
             AchievementSource achievementSource = GetAchievementSource(settings, game);
             if (!AchievementProviders.TryGetValue(achievementSource, out GenericAchievements achievementProvider))
             {
@@ -934,24 +984,54 @@ namespace SuccessStory.Services
 
             if (loadedItem?.IsManual == true)
             {
-                webItem = game.Name.IsEqual("Genshin Impact") ? RefreshGenshinImpact(game) : game.Name.IsEqual("Wuthering Waves") ? RefreshWutheringWaves(game) : game.Name.IsEqual("Honkai: Star Rail") ? RefreshHonkaiStarRail(game) : game.Name.IsEqual("Zenless Zone Zero") ? RefreshZenlessZoneZero(game) : RefreshManual(game);
+                bool usedAchievementWatcher = false;
+                if (PluginSettings.Settings.EnableAchievementWatcher)
+                {
+                    if (Application.Current?.Dispatcher?.CheckAccess() ?? false)
+                    {
+                        Logger.Warn($"Skipping Achievement Watcher Next refresh on the UI thread for {game.Name}");
+                    }
+                    else
+                    {
+                        var achievementWatcher = (AchievementWatcherProvider)AchievementProviders[AchievementSource.AchievementWatcherNext];
+                        webItem = achievementWatcher.GetAchievements(game);
+                        usedAchievementWatcher = webItem?.HasAchievements ?? false;
+                    }
+                }
+
+                if (!usedAchievementWatcher)
+                {
+                    if (PluginSettings.Settings.EnableAchievementWatcher)
+                    {
+                        Logger.Info($"Achievement Watcher Next had no achievements for {game.Name}; refreshing the existing manual provider");
+                    }
+                    webItem = game.Name.IsEqual("Genshin Impact") ? RefreshGenshinImpact(game) : game.Name.IsEqual("Wuthering Waves") ? RefreshWutheringWaves(game) : game.Name.IsEqual("Honkai: Star Rail") ? RefreshHonkaiStarRail(game) : game.Name.IsEqual("Zenless Zone Zero") ? RefreshZenlessZoneZero(game) : RefreshManual(game);
+                }
 
                 if (webItem != null)
                 {
-                    webItem.IsManual = true;
-                    for (int i = 0; i < webItem.Items.Count; i++)
+                    if (usedAchievementWatcher)
                     {
-                        Achievement found = loadedItem.Items.Find(x => (x.ApiName.IsNullOrEmpty() || x.ApiName.IsEqual(webItem.Items[i].ApiName)) && x.Name.IsEqual(webItem.Items[i].Name));
-                        if (found != null)
-                        {
-                            webItem.Items[i].DateUnlocked = found.DateUnlocked;
-                        }
+                        webItem.IsManual = false;
                     }
-                    // Check is ok
-                    if (loadedItem.Unlocked != webItem.Unlocked && loadedItem.Items?.Count != webItem.Items?.Count)
+                    else
                     {
-                        Logger.Warn($"Unlocked data does not match for {game?.Name}");
-                        webItem = loadedItem;
+                        webItem.IsManual = true;
+                        for (int i = 0; i < webItem.Items.Count; i++)
+                        {
+                            Achievement found = loadedItem.Items.Find(x => (x.ApiName.IsNullOrEmpty() || x.ApiName.IsEqual(webItem.Items[i].ApiName)) && x.Name.IsEqual(webItem.Items[i].Name));
+                            if (found != null)
+                            {
+                                webItem.Items[i].DateUnlocked = found.DateUnlocked;
+                            }
+                        }
+
+                        // Check is ok
+                        if (loadedItem.Unlocked != webItem.Unlocked && loadedItem.Items?.Count != webItem.Items?.Count)
+                        {
+                            Logger.Warn($"Unlocked data does not match for {game?.Name}");
+                            webItem = loadedItem;
+                        }
                     }
                 }
             }
