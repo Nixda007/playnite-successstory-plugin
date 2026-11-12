@@ -32,6 +32,72 @@ namespace SuccessStory.Services
     {
         public SuccessStory Plugin { get; set; }
 
+        // Compatibility helpers for the v3.4 shared library.
+        private static bool GameUseXbox360(Game game)
+        {
+            return GameUsesEmulator(game, "xenia");
+        }
+
+        private static bool GameUseShadPS4(Game game)
+        {
+            return GameUsesEmulator(game, "shadps4");
+        }
+
+        private static bool GameUsesEmulator(
+            Game game, string emulatorName)
+        {
+            if (game?.GameActions == null)
+            {
+                return false;
+            }
+
+            var emulators = API.Instance.Database.Emulators;
+
+            if (emulators == null)
+            {
+                return false;
+            }
+
+            foreach (GameAction action in game.GameActions)
+            {
+                if (action == null ||
+                    action.Type != GameActionType.Emulator)
+                {
+                    continue;
+                }
+
+                Emulator emulator = emulators.FirstOrDefault(
+                    e => e.Id == action.EmulatorId);
+
+                if (emulator == null)
+                {
+                    continue;
+                }
+
+                if (MatchesEmulatorName(
+                        emulator.BuiltInConfigId, emulatorName) ||
+                    MatchesEmulatorName(
+                        emulator.Name, emulatorName) ||
+                    MatchesEmulatorName(
+                        emulator.InstallDir, emulatorName))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool MatchesEmulatorName(
+            string value, string emulatorName)
+        {
+            return !string.IsNullOrEmpty(value) &&
+                value.IndexOf(
+                    emulatorName,
+                    StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+
         private static object AchievementProvidersLock => new object();
         private static Dictionary<AchievementSource, GenericAchievements> achievementProviders;
         internal static Dictionary<AchievementSource, GenericAchievements> AchievementProviders
@@ -142,7 +208,7 @@ namespace SuccessStory.Services
                 if (gameAchievements != null && gameAchievements.HasData)
                 {
                     // eFMann - added Xbox360/Xenia
-                    if (PlayniteTools.GameUseXbox360(game) && PluginSettings.Settings.EnableXbox360Achievements)
+                    if (GameUseXbox360(game) && PluginSettings.Settings.EnableXbox360Achievements)
                     {
                         Xbox360Achievements xbox360Achievements = new Xbox360Achievements();
                         if (xbox360Achievements.IsConfigured())
@@ -553,7 +619,7 @@ namespace SuccessStory.Services
                     continue;
                 }
 
-                if (PlayniteTools.GameUseXbox360(game) && settings.EnableXbox360Achievements)
+                if (GameUseXbox360(game) && settings.EnableXbox360Achievements)
                 {
                     return AchievementSource.Xbox360;
                 }
@@ -563,7 +629,7 @@ namespace SuccessStory.Services
                     return AchievementSource.RPCS3;
                 }
 
-                if (PlayniteTools.GameUseShadPS4(game) && settings.EnableShadPS4Achievements)
+                if (GameUseShadPS4(game) && settings.EnableShadPS4Achievements)
                 {
                     return AchievementSource.ShadPS4;
                 }
