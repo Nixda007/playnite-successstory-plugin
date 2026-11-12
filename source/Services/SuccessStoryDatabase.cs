@@ -173,8 +173,28 @@ namespace SuccessStory.Services
 
         public void GetManual(Game game)
         {
+            _ = GetManualAsync(game);
+        }
+
+        private async Task GetManualAsync(Game game)
+        {
             try
             {
+                if (PluginSettings.Settings.EnableAchievementWatcher)
+                {
+                    var achievementWatcher = (AchievementWatcherProvider)AchievementProviders[AchievementSource.AchievementWatcherNext];
+                    GameAchievements watcherAchievements = await Task.Run(() => achievementWatcher.GetAchievements(game));
+                    if (watcherAchievements?.HasAchievements ?? false)
+                    {
+                        watcherAchievements = SetEstimateTimeToUnlock(game, watcherAchievements);
+                        AddOrUpdate(watcherAchievements);
+                        Logger.Info($"Added {watcherAchievements.Total} achievements for {game.Name} using Achievement Watcher Next");
+                        return;
+                    }
+
+                    Logger.Info($"Achievement Watcher Next had no match for {game.Name}; opening the existing provider picker");
+                }
+
                 GameAchievements gameAchievements = GetDefault(game);
 
                 SuccessStoreGameSelection ViewExtension = new SuccessStoreGameSelection(game);
@@ -846,24 +866,47 @@ namespace SuccessStory.Services
 
             if (loadedItem.IsManual)
             {
-                webItem = game.Name.IsEqual("Genshin Impact") ? RefreshGenshinImpact(game) : RefreshManual(game);
+                bool usedAchievementWatcher = false;
+                if (PluginSettings.Settings.EnableAchievementWatcher)
+                {
+                    var achievementWatcher = (AchievementWatcherProvider)AchievementProviders[AchievementSource.AchievementWatcherNext];
+                    webItem = achievementWatcher.GetAchievements(game);
+                    usedAchievementWatcher = webItem?.HasAchievements ?? false;
+                }
+
+                if (!usedAchievementWatcher)
+                {
+                    if (PluginSettings.Settings.EnableAchievementWatcher)
+                    {
+                        Logger.Info($"Achievement Watcher Next had no achievements for {game.Name}; refreshing the existing manual provider");
+                    }
+                    webItem = game.Name.IsEqual("Genshin Impact") ? RefreshGenshinImpact(game) : RefreshManual(game);
+                }
 
                 if (webItem != null)
                 {
-                    webItem.IsManual = true;
-                    for (int i = 0; i < webItem.Items.Count; i++)
+                    if (usedAchievementWatcher)
                     {
-                        Achievement found = loadedItem.Items.Find(x => (x.ApiName.IsNullOrEmpty() || x.ApiName.IsEqual(webItem.Items[i].ApiName)) && x.Name.IsEqual(webItem.Items[i].Name));
-                        if (found != null)
-                        {
-                            webItem.Items[i].DateUnlocked = found.DateWhenUnlocked;
-                        }
+                        webItem.IsManual = false;
                     }
-                    // Check is ok
-                    if (loadedItem.Unlocked != webItem.Unlocked && loadedItem.Items?.Count != webItem.Items?.Count)
+                    else
                     {
-                        Logger.Warn($"Unlocked data does not match for {game?.Name}");
-                        webItem = loadedItem;
+                        webItem.IsManual = true;
+                        for (int i = 0; i < webItem.Items.Count; i++)
+                        {
+                            Achievement found = loadedItem.Items.Find(x => (x.ApiName.IsNullOrEmpty() || x.ApiName.IsEqual(webItem.Items[i].ApiName)) && x.Name.IsEqual(webItem.Items[i].Name));
+                            if (found != null)
+                            {
+                                webItem.Items[i].DateUnlocked = found.DateWhenUnlocked;
+                            }
+                        }
+
+                        // Check is ok
+                        if (loadedItem.Unlocked != webItem.Unlocked && loadedItem.Items?.Count != webItem.Items?.Count)
+                        {
+                            Logger.Warn($"Unlocked data does not match for {game?.Name}");
+                            webItem = loadedItem;
+                        }
                     }
                 }
             }
