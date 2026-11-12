@@ -138,13 +138,13 @@ namespace SuccessStory.Clients
         public override void ResetCachedConfigurationValidationResult()
         {
             CachedConfigurationValidationResult = null;
-            GogApi.ResetIsUserLoggedIn();
+            GogApi?.ResetIsUserLoggedIn();
         }
 
         public override void ResetCachedIsConnectedResult()
         {
             CachedIsConnectedResult = null;
-            GogApi.ResetIsUserLoggedIn();
+            GogApi?.ResetIsUserLoggedIn();
         }
         #endregion
     }

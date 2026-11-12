@@ -135,13 +135,13 @@ namespace SuccessStory.Clients
         public override void ResetCachedConfigurationValidationResult()
         {
             CachedConfigurationValidationResult = null;
-            EpicApi.ResetIsUserLoggedIn();
+            EpicApi?.ResetIsUserLoggedIn();
         }
 
         public override void ResetCachedIsConnectedResult()
         {
             CachedIsConnectedResult = null;
-            EpicApi.ResetIsUserLoggedIn();
+            EpicApi?.ResetIsUserLoggedIn();
         }
         #endregion
 
