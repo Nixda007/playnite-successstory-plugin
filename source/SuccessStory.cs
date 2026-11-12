@@ -877,8 +877,22 @@ namespace SuccessStory
 
             // StoreAPI intialization
             SteamApi = new SteamApi(PluginDatabase.PluginName, PlayniteTools.ExternalPlugin.SuccessStory);
-            SteamApi.SetLanguage(API.Instance.ApplicationSettings.Language);
+            EpicApi = new EpicApi(PluginDatabase.PluginName, PlayniteTools.ExternalPlugin.SuccessStory);
+            GogApi = new GogApi(PluginDatabase.PluginName, PlayniteTools.ExternalPlugin.SuccessStory);
+
+            // Configure store APIs.
+            var language = API.Instance.ApplicationSettings.Language;
+
+            SteamApi.SetLanguage(language);
             SteamApi.StoreSettings = PluginDatabase.PluginSettings.Settings.SteamStoreSettings;
+
+            EpicApi.SetLanguage(language);
+            EpicApi.StoreSettings = PluginDatabase.PluginSettings.Settings.EpicStoreSettings;
+
+            GogApi.SetLanguage(language);
+            GogApi.StoreSettings = PluginDatabase.PluginSettings.Settings.GogStoreSettings;
+
+            // Initialize account information only after all APIs exist.
             if (PluginDatabase.PluginSettings.Settings.EnableSteam)
             {
                 _ = SteamApi.CurrentAccountInfos;
@@ -888,22 +902,15 @@ namespace SuccessStory
                 }
             }
 
-            EpicApi = new EpicApi(PluginDatabase.PluginName, PlayniteTools.ExternalPlugin.SuccessStory);
-            EpicApi.SetLanguage(API.Instance.ApplicationSettings.Language);
-            EpicApi.StoreSettings = PluginDatabase.PluginSettings.Settings.EpicStoreSettings;
             if (PluginDatabase.PluginSettings.Settings.EnableEpic)
             {
                 _ = EpicApi.CurrentAccountInfos;
             }
 
-            GogApi = new GogApi(PluginDatabase.PluginName, PlayniteTools.ExternalPlugin.SuccessStory);
-            GogApi.SetLanguage(API.Instance.ApplicationSettings.Language);
-            GogApi.StoreSettings = PluginDatabase.PluginSettings.Settings.GogStoreSettings;
             if (PluginDatabase.PluginSettings.Settings.EnableGog)
             {
                 _ = GogApi.CurrentAccountInfos;
             }
-
 
             Task.Run(() =>
             {
